@@ -76,7 +76,7 @@ export async function signup(formData: FormData) {
 
             await Promise.race([syncPromise, timeoutPromise])
             console.log("Prisma Sync Success")
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error("Prisma Sync Failed/Timed Out:", e)
             // Continue anyway - don't block auth
         }

@@ -9,6 +9,7 @@ export default async function AllProductsPage() {
     const allProducts = await prisma.product.findMany()
 
     // Map Decimal to number for the client
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formatProduct = (p: any) => ({
         ...p,
         rate_apr: Number(p.rate_apr),
