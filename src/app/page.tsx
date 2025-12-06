@@ -1,10 +1,21 @@
+import { createClient } from "@/lib/supabase/server"
 import prisma from "@/lib/db"
 import { DashboardClient } from "@/components/dashboard/dashboard-client"
+import LandingPage from "@/components/landing/landing-page"
 
-// Force dynamic since we might randomize or depend on user session later
+// Force dynamic since we check auth
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardPage() {
+export default async function HomePage() {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // If user is not logged in, show landing page
+  if (!user) {
+    return <LandingPage />
+  }
+
+  // If user is logged in, show dashboard
   // Fetch products from DB
   const allProducts = await prisma.product.findMany()
 
@@ -15,7 +26,6 @@ export default async function DashboardPage() {
   const topPicks = allProducts.slice(1, 5)
 
   // Map Decimal to number for the client
-  // Prisma Decimal isn't serializable to client directly without conversion
   const formatProduct = (p: any) => ({
     ...p,
     rate_apr: Number(p.rate_apr),
@@ -45,4 +55,3 @@ export default async function DashboardPage() {
     </main>
   )
 }
-

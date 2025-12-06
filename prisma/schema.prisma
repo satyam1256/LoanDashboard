@@ -31,10 +31,13 @@ model Product {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  display_name String?
-  chats        AiChatMessage[]
+  id              String   @id @default(uuid())
+  email           String   @unique
+  display_name    String?
+  monthly_income  Decimal? @db.Decimal(12, 2)
+  credit_score    Int?
+  employment_type String?  // "salaried", "business"
+  chats           AiChatMessage[]
 
   @@map("users")
 }

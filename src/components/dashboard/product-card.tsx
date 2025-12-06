@@ -30,55 +30,61 @@ export function ProductCard({ product, onAskClick }: ProductCardProps) {
     }
 
     return (
-        <Card className="h-full flex flex-col hover:shadow-lg transition-shadow duration-200">
-            <CardHeader>
+        <Card className="group h-full flex flex-col hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-muted/60">
+            <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                    <div>
-                        <CardDescription className="text-xs font-semibold uppercase tracking-wider mb-1">{product.bank}</CardDescription>
-                        <CardTitle className="text-xl font-bold text-gray-900">{product.name}</CardTitle>
+                    <div className="space-y-1">
+                        <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-gray-200">
+                            {product.bank}
+                        </Badge>
+                        <CardTitle className="text-xl font-bold text-foreground leading-tight">{product.name}</CardTitle>
                     </div>
-                    <div className="text-right">
-                        <span className="block text-2xl font-bold text-primary">{product.rate_apr}%</span>
-                        <span className="text-xs text-muted-foreground">APR</span>
+                    <div className="text-right bg-primary/5 px-3 py-2 rounded-lg group-hover:bg-primary/10 transition-colors">
+                        <span className="block text-2xl font-extrabold text-primary leading-none">{product.rate_apr}%</span>
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">APR</span>
                     </div>
                 </div>
             </CardHeader>
 
-            <CardContent className="flex-grow space-y-4">
-                <div className="flex flex-wrap gap-2">
+            <CardContent className="flex-grow space-y-5">
+                <div className="flex flex-wrap gap-2 min-h-[56px]">
                     {badges.slice(0, 3).map((badge, idx) => ( // Show top 3 badges
-                        <Badge key={idx} className={`${badge.color} text-white border-0`}>
-                            {badge.icon && <badge.icon className="w-3 h-3 mr-1" />}
+                        <Badge key={idx} className={`${badge.color} text-white border-0 shadow-sm font-medium px-2 py-0.5`}>
+                            {badge.icon && <badge.icon className="w-3 h-3 mr-1.5" />}
                             {badge.label}
                         </Badge>
                     ))}
                     {badges.length > 3 && (
-                        <Badge variant="outline" className="text-xs">+{badges.length - 3} more</Badge>
+                        <Badge variant="secondary" className="text-xs font-medium">+{badges.length - 3} more</Badge>
                     )}
                 </div>
 
-                <p className="text-sm text-gray-600 line-clamp-3">{product.summary}</p>
+                <div className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                    {product.summary}
+                </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm mt-4">
-                    <div className="flex flex-col">
-                        <span className="text-muted-foreground text-xs">Min Score</span>
-                        <span className="font-semibold">{product.min_credit_score > 0 ? product.min_credit_score : 'N/A'}</span>
+                <div className="grid grid-cols-2 gap-3 pt-2 text-sm">
+                    <div className="flex flex-col p-2 rounded-md bg-muted/30">
+                        <span className="text-muted-foreground text-[10px] uppercase font-semibold">Min Score</span>
+                        <span className="font-bold text-foreground">{product.min_credit_score > 0 ? product.min_credit_score : 'N/A'}</span>
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-muted-foreground text-xs">Tenure</span>
-                        <span className="font-semibold">{product.tenure_min_months}-{product.tenure_max_months} mo</span>
+                    <div className="flex flex-col p-2 rounded-md bg-muted/30">
+                        <span className="text-muted-foreground text-[10px] uppercase font-semibold">Tenure</span>
+                        <span className="font-bold text-foreground">{product.tenure_min_months}-{product.tenure_max_months} mo</span>
                     </div>
                 </div>
             </CardContent>
 
-            <CardFooter>
+            <CardFooter className="pt-2">
                 <Button
-                    className="w-full gap-2"
+                    className="w-full gap-2 font-semibold shadow-sm group-hover:shadow-md transition-all"
                     variant="default"
+                    size="lg"
                     onClick={() => onAskClick?.(product)}
+                    aria-label={`Ask AI about ${product.name}`}
                 >
                     <MessageCircle className="w-4 h-4" />
-                    Ask About Product
+                    Ask Assistant
                 </Button>
             </CardFooter>
         </Card>

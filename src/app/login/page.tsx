@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { login, signup } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,24 +12,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function LoginPage() {
     const { toast } = useToast()
+    const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
 
     const handleSubmit = async (formData: FormData, action: typeof login | typeof signup, type: 'login' | 'signup') => {
         setIsLoading(true)
         const res = await action(formData)
-        setIsLoading(false)
 
         if (res?.error) {
+            setIsLoading(false)
             toast({
                 variant: "destructive",
                 title: "Error",
                 description: res.error
             })
-        } else {
+        } else if (res?.success && res?.redirectTo) {
             toast({
                 title: "Success",
                 description: type === 'login' ? "Logged in successfully" : "Account created successfully"
             })
+
+            // Small delay to allow cookies to be set
+            await new Promise(resolve => setTimeout(resolve, 100))
+
+            setIsLoading(false)
+            router.push(res.redirectTo)
         }
     }
 

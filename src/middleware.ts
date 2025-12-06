@@ -30,13 +30,30 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
-    // No specific route protection yet, just session refresh
+    // Protected Routes (only /products now, dashboard is at /)
+    if (request.nextUrl.pathname.startsWith('/products')) {
+        if (!user) {
+            return NextResponse.redirect(new URL('/login', request.url))
+        }
+    }
+
+    // Auth Routes (redirect to home if already logged in)
+    if (request.nextUrl.pathname.startsWith('/login') && user) {
+        return NextResponse.redirect(new URL('/', request.url))
+    }
 
     return response
 }
 
 export const config = {
     matcher: [
+        /*
+         * Match all request paths except:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         * - public folder
+         */
         '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

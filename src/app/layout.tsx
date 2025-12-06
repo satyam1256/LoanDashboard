@@ -4,7 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Navbar } from "@/components/layout/navbar";
 import { ChatSheet } from "@/components/chat/chat-sheet";
-import { UserNav } from "@/components/layout/user-nav"; // Server Component
+import { UserNav } from "@/components/layout/user-nav" // Client Component
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
