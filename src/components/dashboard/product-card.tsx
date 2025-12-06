@@ -47,15 +47,16 @@ export function ProductCard({ product, onAskClick }: ProductCardProps) {
             </CardHeader>
 
             <CardContent className="flex-grow space-y-5">
-                <div className="flex flex-wrap gap-2 min-h-[56px]">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 min-h-[40px] sm:min-h-[56px]">
                     {badges.slice(0, 3).map((badge, idx) => ( // Show top 3 badges
-                        <Badge key={idx} className={`${badge.color} text-white border-0 shadow-sm font-medium px-2 py-0.5`}>
-                            {badge.icon && <badge.icon className="w-3 h-3 mr-1.5" />}
-                            {badge.label}
+                        <Badge key={idx} className={`${badge.color} text-white border-0 shadow-sm font-medium px-1.5 py-0.5 sm:px-2 sm:py-1 text-[9px] sm:text-xs whitespace-nowrap`}>
+                            {badge.icon && <badge.icon className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />}
+                            <span className="hidden xs:inline sm:inline">{badge.label}</span>
+                            <span className="inline xs:hidden sm:hidden">{badge.label.replace('No Prepayment Fee', 'No Prepay').replace('Zero Processing Fee', 'Zero Fee')}</span>
                         </Badge>
                     ))}
                     {badges.length > 3 && (
-                        <Badge variant="secondary" className="text-xs font-medium">+{badges.length - 3} more</Badge>
+                        <Badge variant="secondary" className="text-[9px] sm:text-xs font-medium px-1.5 py-0.5 sm:px-2 sm:py-1">+{badges.length - 3}</Badge>
                     )}
                 </div>
 
