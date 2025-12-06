@@ -76,7 +76,7 @@ Open [http://localhost:3000](http://localhost:3000).
 Dynamic badges are assigned to products based on attributes:
 - **Low APR**: APR < 11%
 - **Fast Disbursal**: "Instant" or contains "hour"
-- **No Prepayment**: `prepayment_allowed` is true (Wait, actually usually "No penalty" is the benefit, logic handles `prepayment_allowed` check).
+- **No Prepayment Penalty**: `prepayment_allowed` is true.
 - **Low Docs**: `docs_level` === 'minimal'
 
 ## 🤖 AI Grounding Strategy
@@ -84,4 +84,3 @@ The AI Chat uses a **Retrieval-Augmented Generation (RAG)-lite** approach:
 1. When user asks a question, the backend fetches the **specific product context** (mock or DB).
 2. A strictly scoped **System Prompt** is constructed containing *only* that product's details.
 3. The LLM is instructed to answer *only* based on the provided context.
-# LoanDashboard
