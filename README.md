@@ -22,9 +22,9 @@ graph TD
     Client[Client Browser]
     
     subgraph "Frontend (Next.js)"
-        Page[Pages (Dashboard, All Products)]
+        Page["Pages (Dashboard, All Products)"]
         Store[Zustand Chat Store]
-        Comp[Components (Cards, Filters)]
+        Comp["Components (Cards, Filters)"]
     end
     
     subgraph "Backend (API Routes)"
