@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useMemo } from "react"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { ProductCard } from "@/components/dashboard/product-card"
 import { ProductFilters } from "@/components/products/product-filters"
 import { useChatStore } from "@/hooks/use-chat-store"
@@ -13,12 +14,34 @@ interface ProductsClientProps {
 export function ProductsClient({ initialProducts }: ProductsClientProps) {
     const { openChat } = useChatStore()
 
-    const [filters, setFilters] = useState({
-        search: "",
-        maxApr: 20,
-        minIncome: 0,
-        minCreditScore: 0
-    })
+    const searchParams = useSearchParams()
+    const router = useRouter()
+    const pathname = usePathname()
+
+    // Initialize state from URL params
+    const filters = {
+        search: searchParams.get('search') || "",
+        maxApr: Number(searchParams.get('maxApr')) || 20,
+        minIncome: Number(searchParams.get('minIncome')) || 0,
+        minCreditScore: Number(searchParams.get('minCreditScore')) || 0
+    }
+
+    const setFilters = (newFilters: typeof filters) => {
+        const params = new URLSearchParams(searchParams)
+        if (newFilters.search) params.set('search', newFilters.search)
+        else params.delete('search')
+
+        if (newFilters.maxApr < 20) params.set('maxApr', newFilters.maxApr.toString())
+        else params.delete('maxApr')
+
+        if (newFilters.minIncome > 0) params.set('minIncome', newFilters.minIncome.toString())
+        else params.delete('minIncome')
+
+        if (newFilters.minCreditScore > 0) params.set('minCreditScore', newFilters.minCreditScore.toString())
+        else params.delete('minCreditScore')
+
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }
 
     // Extract unique banks for potential dropdown (optional usage)
     const banks = useMemo(() => Array.from(new Set(initialProducts.map(p => p.bank))), [initialProducts])
