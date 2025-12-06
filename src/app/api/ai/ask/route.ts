@@ -11,30 +11,13 @@ type ProductContext = {
     [key: string]: any;
 }
 
-import { z } from 'zod'
-
-// ... imports remain same
-
-// Schema for input validation
-const ChatRequestSchema = z.object({
-    productId: z.string(),
-    message: z.string().min(1),
-    history: z.array(z.object({
-        role: z.enum(['user', 'assistant']),
-        content: z.string()
-    })).optional().default([])
-})
-
 export async function POST(req: Request) {
     try {
-        const body = await req.json()
-        const validation = ChatRequestSchema.safeParse(body)
+        const { productId, message, history } = await req.json()
 
-        if (!validation.success) {
-            return NextResponse.json({ error: "Invalid request data", details: validation.error.format() }, { status: 400 })
+        if (!productId || !message) {
+            return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
         }
-
-        const { productId, message, history } = validation.data
 
         // 1. Fetch Product Context (DB)
         let product: ProductContext | undefined
@@ -88,6 +71,9 @@ ${contextString}
 `
 
         // Check for API Key (Gemini)
+        // Note: In production, use process.env.GOOGLE_API_KEY
+        // For this session, we might need to fallback to the one provided if not in env, 
+        // but best practice is env.
         const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY
 
         if (!apiKey) {
@@ -99,8 +85,7 @@ ${contextString}
         }
 
         const genAI = new GoogleGenerativeAI(apiKey)
-
-        // Use standard flash 2.0 which is generally available and stable
+        // Using a model confirmed to be available for this key
         const model = genAI.getGenerativeModel({
             model: "gemini-2.0-flash-001",
             safetySettings: [
@@ -124,7 +109,9 @@ ${contextString}
         })
 
         // Construct chat history for Gemini
-        const chatHistory = history.map((msg) => ({
+        // Gemini expects history in { role: "user" | "model", parts: [{ text: "..." }] } format
+        // Our 'history' from client is { role: "user" | "assistant", content: "..." }
+        const chatHistory = history.map((msg: any) => ({
             role: msg.role === 'assistant' ? 'model' : 'user',
             parts: [{ text: msg.content }]
         }))
@@ -154,9 +141,9 @@ ${contextString}
             answer: answer
         })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("AI Ask Error:", error)
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 })
     }
 }
 
