@@ -32,16 +32,16 @@ export function ProductCard({ product, onAskClick }: ProductCardProps) {
     return (
         <Card className="group h-full flex flex-col hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-muted/60">
             <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start gap-2">
                     <div className="space-y-1">
-                        <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-gray-200">
+                        <Badge variant="outline" className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-gray-200">
                             {product.bank}
                         </Badge>
-                        <CardTitle className="text-xl font-bold text-foreground leading-tight">{product.name}</CardTitle>
+                        <CardTitle className="text-lg sm:text-xl font-bold text-foreground leading-tight line-clamp-2">{product.name}</CardTitle>
                     </div>
-                    <div className="text-right bg-primary/5 px-3 py-2 rounded-lg group-hover:bg-primary/10 transition-colors">
-                        <span className="block text-2xl font-extrabold text-primary leading-none">{product.rate_apr}%</span>
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">APR</span>
+                    <div className="text-right bg-primary/5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg group-hover:bg-primary/10 transition-colors flex-shrink-0">
+                        <span className="block text-lg sm:text-2xl font-extrabold text-primary leading-none">{product.rate_apr}%</span>
+                        <span className="text-[8px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wide">APR</span>
                     </div>
                 </div>
             </CardHeader>

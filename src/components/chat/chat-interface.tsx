@@ -8,11 +8,26 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useChatStore } from "@/hooks/use-chat-store"
 import { useToast } from "@/hooks/use-toast"
 
+import { getChatHistory } from "@/app/actions/chat"
+
 export function ChatInterface() {
-    const { messages, addMessage, isLoading, setLoading, activeProduct } = useChatStore()
+    const { messages, addMessage, setMessages, isLoading, setLoading, activeProduct } = useChatStore()
     const [input, setInput] = useState("")
     const scrollRef = useRef<HTMLDivElement>(null)
     const { toast } = useToast()
+
+    // Load chat history
+    useEffect(() => {
+        const loadHistory = async () => {
+            if (activeProduct?.id) {
+                const history = await getChatHistory(activeProduct.id)
+                if (history.length > 0) {
+                    setMessages(history)
+                }
+            }
+        }
+        loadHistory()
+    }, [activeProduct?.id, setMessages])
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -55,11 +70,11 @@ export function ChatInterface() {
                 content: data.answer,
                 createdAt: new Date()
             })
-        } catch (error) {
+        } catch (error: any) {
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: "Failed to connect to AI assistant. Please try again."
+                description: error.message || "Failed to connect to AI assistant. Please try again."
             })
             console.error(error)
         } finally {
@@ -68,8 +83,8 @@ export function ChatInterface() {
     }
 
     return (
-        <div className="flex flex-col h-full">
-            <ScrollArea className="flex-1 pr-4">
+        <div className="flex flex-col h-full max-h-full">
+            <ScrollArea className="flex-1 min-h-0 pr-4">
                 <div className="space-y-4 pb-4">
                     {messages.length === 0 && (
                         <div className="text-center text-muted-foreground py-10 px-4">
@@ -107,7 +122,7 @@ export function ChatInterface() {
                 </div>
             </ScrollArea>
 
-            <div className="pt-4 mt-auto">
+            <div className="pt-4 flex-shrink-0 border-t">
                 <form
                     onSubmit={(e) => { e.preventDefault(); handleSend() }}
                     className="flex gap-2"

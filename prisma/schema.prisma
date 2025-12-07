@@ -25,7 +25,7 @@ model Product {
   summary           String?
   faq               Json?    @default("[]")
   terms             Json?    @default("{}")
-  VideoChats        AiChatMessage[]
+  chat_sessions     AiChatMessage[]
 
   @@map("products")
 }
@@ -37,21 +37,23 @@ model User {
   monthly_income  Decimal? @db.Decimal(12, 2)
   credit_score    Int?
   employment_type String?  // "salaried", "business"
-  chats           AiChatMessage[]
+  chat_sessions     AiChatMessage[]
 
   @@map("users")
 }
 
 model AiChatMessage {
-  id         String   @id @default(uuid())
-  user_id    String
-  product_id String
-  role       String   // "user" | "assistant"
-  content    String
-  created_at DateTime @default(now()) @db.Timestamptz(6)
+  id          String   @id @default(uuid())
+  user_id     String
+  product_id  String
+  messages    Json     // Stores array of {role, content, timestamp}
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
   
-  user       User     @relation(fields: [user_id], references: [id])
-  product    Product  @relation(fields: [product_id], references: [id])
+  user        User     @relation(fields: [user_id], references: [id])
+  product     Product  @relation(fields: [product_id], references: [id])
 
+  @@unique([user_id, product_id])
   @@map("ai_chat_messages")
 }
+

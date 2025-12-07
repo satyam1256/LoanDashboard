@@ -1,17 +1,57 @@
-import { NextResponse } from 'next/server'
-import prisma from '@/lib/db'
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
+import { NextRequest, NextResponse } from "next/server"
+import OpenAI from "openai"
+import { createClient } from '@/lib/supabase/server'
+import prisma from "@/lib/db"
 
-// Generic interface for DB Product
-type ProductContext = {
-    name: string;
-    bank: string;
-    rate_apr: number | string; // simple parsing
-    summary: string | null;
-    [key: string]: any;
-}
+const SYSTEM_PROMPT = `
+You are an expert AI Loan Assistant for "Loan Picks", a platform recommending loan products.
+Your goal is to help users select the best loan product based on their profile and answer specific questions about terms, eligibility, and repayment.
 
-export async function POST(req: Request) {
+*Context:*
+- You have access to the specific product the user is viewing.
+- You have access to the user's basic profile (income, credit score, employment) if they are logged in.
+- You have access to computed "eligibility" status.
+
+*Tone & Style:*
+- Professional, empathetic, and clear.
+- Be concise (CRITICAL: 80-90 words max per response).
+- Exception: If providing a detailed calculation (like EMI breakdown), you may exceed the word limit to ensure clarity.
+- Use formatting (bullet points, bold text) to make it readable.
+
+*Knowledge Base:*
+- *Interest Rates:* APR, fixed vs floating.
+- *Fees:* Processing fees, prepayment penalties, late fees.
+- *Eligibility:* Income requirements, credit score thresholds (750+ usually good), employment stability.
+- *Documents:* ID proof, address proof, income proof (salary slips, ITR).
+- *Process:* Application -> Verification -> Disbursal.
+
+*Common Questions to Handle:*
+1. "Am I eligible?" (Check their score/income against product rules)
+2. "What is the EMI?" (Explain the formula or give an estimate if amount/tenure known)
+3. "Hidden charges?" (Explain processing fees, etc.)
+4. "Required documents?"
+
+*Refusal Strategy:*
+- If asked about non-loan topics (e.g., "Write code", "Recipe"), politely decline and steer back to loans.
+- If asked for definitive financial advice ("Should I invest in stocks?"), disclaim you are an AI and suggest consulting a certified advisor.
+
+*Specific Rules:*
+- If User Income < Product Min Income -> Warn about eligibility.
+- If User Credit Score < Product Min Score -> Warn about eligibility.
+- Always be encouraging but realistic.
+
+*Response Structure:*
+- Direct Answer
+- Key Detail/Warning (if applicable)
+- Helpful Next Step (e.g., "Check your documents", "Apply now")
+
+*Key Topics:*
+- Application Process: Steps: Application → Document verification → Credit check → Approval → Disbursal
+- Repayment: Explain EMI calculation, Payment methods, Prepayment
+- IMPORTANT: ALWAYS stay within 80-90 words unless calculating.
+`
+
+export async function POST(req: NextRequest) {
     try {
         const { productId, message, history } = await req.json()
 
@@ -19,123 +59,188 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
         }
 
-        // 1. Fetch Product Context (DB)
-        let product: ProductContext | undefined
-        // Try DB first
-        if (process.env.DATABASE_URL) {
-            try {
-                const dbProduct = await prisma.product.findUnique({ where: { id: productId } })
-                if (dbProduct) {
-                    product = {
-                        ...dbProduct,
-                        rate_apr: dbProduct.rate_apr.toNumber(),
-                        min_income: dbProduct.min_income.toNumber(),
-                        processing_fee_pct: dbProduct.processing_fee_pct.toNumber()
-                    }
-                }
-            } catch (e) {
-                console.error("DB Connection failed", e)
-            }
-        }
+        // 1. Fetch Product Context (Flat schema)
+        const product = await prisma.product.findUnique({
+            where: { id: productId }
+        })
 
         if (!product) {
             return NextResponse.json({ error: "Product not found" }, { status: 404 })
         }
 
-        // 2. AI Processing
-        const contextString = `
-Product: ${product.name}
-Bank: ${product.bank}
-Type: ${product.type}
-APR: ${product.rate_apr}%
-Min Credit Score: ${product.min_credit_score}
-Tenure: ${product.tenure_min_months}-${product.tenure_max_months} months
-Summary: ${product.summary || "N/A"}
-Processing Fee: ${product.processing_fee_pct}%
-Disbursal Speed: ${product.disbursal_speed}
-Docs Level: ${product.docs_level}
-Terms: ${JSON.stringify(product.terms || {})}
-FAQs: ${JSON.stringify(product.faq || [])}
-        `.trim()
+        // 2. Fetch User Profile
+        const supabase = createClient()
+        const { data: { user: authUser } } = await supabase.auth.getUser()
 
-        const systemPrompt = `You are a helpful loan assistant for "LoanPicks". 
-You are answering a user's question about a SPECIFIC loan product. 
-Strictly base your answer on the provided product details below.
-If the answer is not in the data, state that you don't have that information.
-Do not invent features.
-Keep answers concise and helpful.
-Use markdown for formatting.
+        let authenticatedUser = null
+        let userProfile = {
+            monthly_income: 0,
+            credit_score: 0,
+            employment_type: 'Not specified'
+        }
 
-Product Details:
-${contextString}
-`
+        if (authUser && authUser.email) {
+            let dbUser = await prisma.user.findUnique({
+                where: { email: authUser.email }
+            })
 
-        // Check for API Key (Gemini)
-        // Note: In production, use process.env.GOOGLE_API_KEY
-        // For this session, we might need to fallback to the one provided if not in env, 
-        // but best practice is env.
-        const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY
+            if (!dbUser) {
+                try {
+                    dbUser = await prisma.user.create({
+                        data: {
+                            id: authUser.id,
+                            email: authUser.email,
+                            display_name: authUser.user_metadata?.display_name || 'User',
+                            monthly_income: null,
+                            credit_score: null
+                        }
+                    })
+                } catch (createError) {
+                    dbUser = await prisma.user.findUnique({ where: { id: authUser.id } })
+                }
+            }
+
+            if (dbUser) {
+                authenticatedUser = dbUser
+                if (dbUser.monthly_income && dbUser.credit_score) {
+                    userProfile = {
+                        monthly_income: Number(dbUser.monthly_income),
+                        credit_score: dbUser.credit_score,
+                        employment_type: dbUser.employment_type || 'Not specified'
+                    }
+                }
+            }
+        }
+
+        // Fallback for unauthenticated or incomplete users
+        if (!authenticatedUser) {
+            authenticatedUser = await prisma.user.findFirst({
+                where: {
+                    monthly_income: { not: null },
+                    credit_score: { not: null }
+                }
+            })
+            if (authenticatedUser) {
+                userProfile = {
+                    monthly_income: Number(authenticatedUser.monthly_income),
+                    credit_score: authenticatedUser.credit_score,
+                    employment_type: authenticatedUser.employment_type || 'Not specified'
+                }
+            }
+        }
+
+        // 3. Construct System Context
+        // Note: Using fields directly from the flat Product model
+        const productContext = `
+        ACTIVE PRODUCT: ${product.name}
+        Bank: ${product.bank}
+        Type: ${product.type}
+        Interest Rate (APR): ${product.rate_apr}%
+        Processing Fee: ${product.processing_fee_pct}%
+        Min Income Required: ${product.min_income}
+        Min Credit Score: ${product.min_credit_score}
+        Tenure: ${product.tenure_min_months} - ${product.tenure_max_months} months
+        Disbursal Speed: ${product.disbursal_speed}
+        Docs Level: ${product.docs_level}
+        Summary: ${product.summary || "N/A"}
+        Terms: ${JSON.stringify(product.terms)}
+        `
+
+        const userContext = `
+        USER PROFILE:
+        Monthly Income: ${userProfile.monthly_income}
+        Credit Score: ${userProfile.credit_score}
+        Employment: ${userProfile.employment_type}
+        `
+
+        // 4. Initialize OpenRouter (OpenAI SDK)
+        const apiKey = process.env.OPENROUTER_API_KEY
 
         if (!apiKey) {
-            // Return Mock AI Response
-            await new Promise(r => setTimeout(r, 1000)) // Simulate delay
             return NextResponse.json({
-                answer: `[MOCK AI] I see you're asking about "${message}". \n\nI am ready to use Gemini, but **GOOGLE_API_KEY** is missing in your .env file.\n\nPlease add it to get real responses.`
+                answer: `[MOCK AI] I clearly see you are asking about "${message}". However, the API key is missing. Please check your .env file.`
             })
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey)
-        // Using a model confirmed to be available for this key
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash-001",
-            safetySettings: [
-                {
-                    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                {
-                    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                {
-                    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                {
-                    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-            ],
+        const openai = new OpenAI({
+            baseURL: "https://openrouter.ai/api/v1",
+            apiKey: apiKey,
+            defaultHeaders: {
+                "HTTP-Referer": "http://localhost:3000", // Optional, for including your app on OpenRouter rankings
+                "X-Title": "Loan Picks Dashboard", // Optional. Shows in rankings on openrouter.ai.
+            }
         })
 
-        // Construct chat history for Gemini
-        // Gemini expects history in { role: "user" | "model", parts: [{ text: "..." }] } format
-        // Our 'history' from client is { role: "user" | "assistant", content: "..." }
-        const chatHistory = history.map((msg: any) => ({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: msg.content }]
-        }))
+        // 5. Build Message History for Chat Completion
+        const messages: any[] = [
+            { role: "system", content: SYSTEM_PROMPT + "\n\n" + productContext + "\n\n" + userContext },
+        ]
 
-        const chat = model.startChat({
-            history: [
-                {
-                    role: "user",
-                    parts: [{ text: systemPrompt }]
-                },
-                {
-                    role: "model",
-                    parts: [{ text: "Understood. I will answer questions about this loan product based on the details provided. I will not invent features." }]
-                },
-                ...chatHistory
-            ],
-            generationConfig: {
-                maxOutputTokens: 500,
-            },
+        // Add history
+        if (history && Array.isArray(history)) {
+            history.forEach((msg: any) => {
+                if (msg.role === 'user' || msg.role === 'assistant') {
+                    messages.push({ role: msg.role, content: msg.content })
+                }
+            })
+        }
+
+        // Add current message
+        messages.push({ role: "user", content: message })
+
+        // 6. Generate Response
+        const completion = await openai.chat.completions.create({
+            model: "meta-llama/llama-3.3-70b-instruct:free",
+            messages: messages,
+            max_tokens: 300,
+            temperature: 0.7,
         })
 
-        const result = await chat.sendMessage(message)
-        const response = await result.response
-        const answer = response.text()
+        const answer = completion.choices[0].message.content || "I couldn't generate a response. Please try again."
+
+        // 7. Save Chat Session
+        if (process.env.DATABASE_URL && authenticatedUser) {
+            try {
+                // Fetch the EXISTING session for this user+product
+                const existingSession = await prisma.aiChatMessage.findUnique({
+                    where: {
+                        user_id_product_id: {
+                            user_id: authenticatedUser.id,
+                            product_id: productId
+                        }
+                    }
+                })
+
+                const newMessages = [
+                    { role: 'user', content: message, createdAt: new Date() },
+                    { role: 'assistant', content: answer, createdAt: new Date() }
+                ]
+
+                if (existingSession) {
+                    // APPEND to existing messages
+                    const currentMessages = existingSession.messages as any[] || []
+                    const updatedMessages = [...currentMessages, ...newMessages]
+
+                    await prisma.aiChatMessage.update({
+                        where: { id: existingSession.id },
+                        data: {
+                            messages: updatedMessages
+                        }
+                    })
+                } else {
+                    // CREATE new session
+                    await prisma.aiChatMessage.create({
+                        data: {
+                            user_id: authenticatedUser.id,
+                            product_id: productId,
+                            messages: newMessages
+                        }
+                    })
+                }
+            } catch (dbError) {
+                console.error("Failed to save chat session:", dbError)
+            }
+        }
 
         return NextResponse.json({
             answer: answer
@@ -143,8 +248,15 @@ ${contextString}
 
     } catch (error: any) {
         console.error("AI Ask Error:", error)
+
+        // Handle Rate Limits
+        if (error.status === 429 || error.message?.includes('429')) {
+            return NextResponse.json({
+                error: "AI usage limit reached (OpenRouter). Please wait a moment before trying again.",
+                isRateLimit: true
+            }, { status: 429 })
+        }
+
         return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 })
     }
 }
-
-

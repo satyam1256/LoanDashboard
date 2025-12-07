@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
     const { toast } = useToast()
@@ -32,10 +33,9 @@ export default function LoginPage() {
                 description: type === 'login' ? "Logged in successfully" : "Account created successfully"
             })
 
-            // Small delay to allow cookies to be set
+            // Allow cookies to set, then navigate.
+            // Do NOT set isLoading(false) here, keep it true while navigating to prevent UI flash
             await new Promise(resolve => setTimeout(resolve, 100))
-
-            setIsLoading(false)
             router.push(res.redirectTo)
         }
     }
@@ -59,14 +59,21 @@ export default function LoginPage() {
                             <form action={(formData) => handleSubmit(formData, login, 'login')} className="space-y-4">
                                 <div className="space-y-1">
                                     <Label htmlFor="email">Email</Label>
-                                    <Input id="email" name="email" type="email" placeholder="m@example.com" required />
+                                    <Input id="email" name="email" type="email" placeholder="m@example.com" required disabled={isLoading} />
                                 </div>
                                 <div className="space-y-1">
                                     <Label htmlFor="password">Password</Label>
-                                    <Input id="password" name="password" type="password" required />
+                                    <Input id="password" name="password" type="password" required disabled={isLoading} />
                                 </div>
                                 <Button type="submit" className="w-full" disabled={isLoading}>
-                                    {isLoading ? "Logging in..." : "Login"}
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Logging in...
+                                        </>
+                                    ) : (
+                                        "Login"
+                                    )}
                                 </Button>
                             </form>
                         </CardContent>
@@ -84,18 +91,25 @@ export default function LoginPage() {
                             <form action={(formData) => handleSubmit(formData, signup, 'signup')} className="space-y-4">
                                 <div className="space-y-1">
                                     <Label htmlFor="name">Full Name</Label>
-                                    <Input id="name" name="name" placeholder="John Doe" required />
+                                    <Input id="name" name="name" placeholder="John Doe" required disabled={isLoading} />
                                 </div>
                                 <div className="space-y-1">
                                     <Label htmlFor="email">Email</Label>
-                                    <Input id="email" name="email" type="email" placeholder="m@example.com" required />
+                                    <Input id="email" name="email" type="email" placeholder="m@example.com" required disabled={isLoading} />
                                 </div>
                                 <div className="space-y-1">
                                     <Label htmlFor="password">Password</Label>
-                                    <Input id="password" name="password" type="password" required />
+                                    <Input id="password" name="password" type="password" required disabled={isLoading} />
                                 </div>
                                 <Button type="submit" className="w-full" disabled={isLoading}>
-                                    {isLoading ? "Creating account..." : "Sign Up"}
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Creating account...
+                                        </>
+                                    ) : (
+                                        "Sign Up"
+                                    )}
                                 </Button>
                             </form>
                         </CardContent>

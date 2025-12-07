@@ -17,6 +17,7 @@ interface ChatState {
     openChat: (product: Product) => void
     closeChat: () => void
     addMessage: (message: Message) => void
+    setMessages: (messages: Message[]) => void
     setLoading: (loading: boolean) => void
 }
 
@@ -39,6 +40,8 @@ export const useChatStore = create<ChatState>((set) => ({
     addMessage: (message) => set((state) => ({
         messages: [...state.messages, message]
     })),
+
+    setMessages: (messages) => set({ messages }),
 
     setLoading: (loading) => set({ isLoading: loading })
 }))
