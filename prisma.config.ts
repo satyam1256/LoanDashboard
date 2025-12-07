@@ -11,7 +11,9 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: env("DATABASE_URL"),
-    directUrl: env("DIRECT_URL"),
+    // Using process.env with fallback to ensure build succeeds even if env vars are missing
+    // Vercel build step (prisma generate) needs a valid URL structure but doesn't connect
+    url: process.env.DATABASE_URL ?? "postgresql://build:build@localhost:5432/build",
+    directUrl: process.env.DIRECT_URL ?? "postgresql://build:build@localhost:5432/build",
   },
 });
