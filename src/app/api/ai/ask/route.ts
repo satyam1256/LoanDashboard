@@ -104,8 +104,8 @@ export async function POST(req: NextRequest) {
                 authenticatedUser = dbUser
                 if (dbUser.monthly_income && dbUser.credit_score) {
                     userProfile = {
-                        monthly_income: Number(dbUser.monthly_income),
-                        credit_score: dbUser.credit_score,
+                        monthly_income: Number(dbUser.monthly_income) || 0,
+                        credit_score: dbUser.credit_score ?? 0,
                         employment_type: dbUser.employment_type || 'Not specified'
                     }
                 }
@@ -122,8 +122,8 @@ export async function POST(req: NextRequest) {
             })
             if (authenticatedUser) {
                 userProfile = {
-                    monthly_income: Number(authenticatedUser.monthly_income),
-                    credit_score: authenticatedUser.credit_score,
+                    monthly_income: Number(authenticatedUser.monthly_income) || 0,
+                    credit_score: authenticatedUser.credit_score ?? 0,
                     employment_type: authenticatedUser.employment_type || 'Not specified'
                 }
             }

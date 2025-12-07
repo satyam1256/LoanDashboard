@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import prisma from '@/lib/db'
 
 export async function getChatHistory(productId: string) {
     try {
